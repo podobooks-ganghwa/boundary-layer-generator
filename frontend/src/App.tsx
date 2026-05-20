@@ -7,26 +7,57 @@ import SummaryTable from "./components/SummaryTable";
 import SweepPlots from "./components/SweepPlots";
 import { MODEL_LABEL } from "./physics/constants";
 import { solveBlasius } from "./physics/blasius";
-import { fromModeA, fromModeB } from "./physics/edgeConditions";
+import {
+  fromFreestreamWithShock,
+  fromModeA,
+  fromModeB,
+  type EdgeFromFreestreamResult,
+} from "./physics/edgeConditions";
 import { MANGLER_NOTE, type GeometryConfig } from "./physics/geometry";
 import { linspace, profileAtX, xSweep } from "./physics/profiles";
 import { DEFAULT_INPUTS, deriveGeometry, TOTAL_STEPS, type AppInputs } from "./types";
 
-function buildEdge(inputs: AppInputs) {
-  if (inputs.inputMode === "mode_a") {
-    return fromModeA({
-      M_e: inputs.M_e,
+type BuildResult = {
+  edge: ReturnType<typeof fromModeB>;
+  freestreamMeta: EdgeFromFreestreamResult | null;
+};
+
+function buildEdge(inputs: AppInputs): BuildResult {
+  const geom = deriveGeometry(inputs);
+  const deflectionDeg =
+    geom.kind === "flat_plate" ? 0 : inputs.halfAngleDeg;
+
+  if (inputs.flowLevel === "freestream") {
+    const meta = fromFreestreamWithShock({
+      M_inf: inputs.M_inf,
+      p_inf: inputs.p_inf,
+      T_inf: inputs.T_inf,
       T_w: inputs.T_w,
-      Re_unit: inputs.Re_unit,
-      ...(inputs.useH0 ? { h0: inputs.h0 } : { T0: inputs.T0 }),
+      deflectionDeg,
     });
+    return { edge: meta.edge, freestreamMeta: meta };
   }
-  return fromModeB({
-    U_e: inputs.U_e,
-    p_e: inputs.p_e,
-    T_e: inputs.T_e,
-    T_w: inputs.T_w,
-  });
+
+  if (inputs.inputMode === "mode_a") {
+    return {
+      edge: fromModeA({
+        M_e: inputs.M_e,
+        T_w: inputs.T_w,
+        Re_unit: inputs.Re_unit,
+        ...(inputs.useH0 ? { h0: inputs.h0 } : { T0: inputs.T0 }),
+      }),
+      freestreamMeta: null,
+    };
+  }
+  return {
+    edge: fromModeB({
+      U_e: inputs.U_e,
+      p_e: inputs.p_e,
+      T_e: inputs.T_e,
+      T_w: inputs.T_w,
+    }),
+    freestreamMeta: null,
+  };
 }
 
 export default function App() {
@@ -35,7 +66,7 @@ export default function App() {
 
   const result = useMemo(() => {
     try {
-      const edge = buildEdge(inputs);
+      const { edge, freestreamMeta } = buildEdge(inputs);
       const geom = deriveGeometry(inputs);
       const geometry: GeometryConfig = {
         kind: geom.kind,
@@ -45,13 +76,21 @@ export default function App() {
       const xArr = linspace(inputs.x_min, inputs.x_max, inputs.n_x);
       const prof = profileAtX(edge, geometry, inputs.x_sel, blasius);
       const sweep = xSweep(edge, geometry, xArr, blasius);
-      return { edge, geometry, prof, sweep, error: null as string | null };
+      return {
+        edge,
+        geometry,
+        prof,
+        sweep,
+        freestreamMeta,
+        error: null as string | null,
+      };
     } catch (e) {
       return {
         edge: null,
         geometry: null,
         prof: null,
         sweep: null,
+        freestreamMeta: null,
         error: e instanceof Error ? e.message : String(e),
       };
     }
@@ -67,7 +106,7 @@ export default function App() {
           브라우저에서 돌아가는 경계층 유사해 프로파일 생성기 (평판 · 웨지 · 콘)
         </p>
       </header>
-      <p className="notice info">모든 계산은 이 컴퓨터 브라우저 안에서만 실행됩니다. 서버로 데이터가 가지 않습니다.</p>
+      <p className="notice info">모든 계산은 이 컴퓨터 브라우저 안에서만 실행됩니다.</p>
 
       <StepWizard
         inputs={inputs}
@@ -91,7 +130,11 @@ export default function App() {
           <main className="main results">
             <section>
               <h2>계산 결과 요약</h2>
-              <SummaryTable edge={result.edge} />
+              <SummaryTable
+                edge={result.edge}
+                freestream={result.freestreamMeta?.freestream}
+                shock={result.freestreamMeta?.shock}
+              />
               <div className="metrics">
                 <div className="metric">
                   <div className="label">δ₉₉ @ x</div>
@@ -114,8 +157,7 @@ export default function App() {
             <section className="hero-plot">
               <h2>몸체 + 경계층 (과장 표시)</h2>
               <p className="section-hint">
-                빨간 영역은 x = {inputs.x_sel} m 에서의 속도 프로파일 형상입니다. 파란 점선은 δ₉₉
-                × {inputs.blVisualScale} 배입니다. 실제 두께보다 훨씬 크게 그려 보기 쉽게 했습니다.
+                빨간 영역: x = {inputs.x_sel} m 프로파일. 파란 점선: δ₉₉ × {inputs.blVisualScale}×
               </p>
               <GeometryEnvelope
                 sweep={result.sweep}

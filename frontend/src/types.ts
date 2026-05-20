@@ -11,13 +11,19 @@ export interface AppInputs {
   halfAngleDeg: number;
   /** Step 3 */
   flowLevel: FlowLevel;
-  /** Step 4–5 (derived from flowLevel but user can see which form) */
+  /** Step 4–5: edge path only */
   inputMode: InputMode;
+  /** Freestream (step 5 when flowLevel === freestream) */
+  M_inf: number;
+  p_inf: number;
+  T_inf: number;
+  /** Edge path — mode A */
   M_e: number;
   T0: number;
   useH0: boolean;
   h0: number;
   Re_unit: number;
+  /** Edge path — mode B */
   U_e: number;
   p_e: number;
   T_e: number;
@@ -40,6 +46,9 @@ export const DEFAULT_INPUTS: AppInputs = {
   halfAngleDeg: 7,
   flowLevel: "edge",
   inputMode: "mode_b",
+  M_inf: 6.5,
+  p_inf: 1200,
+  T_inf: 220,
   M_e: 5.9,
   T0: 1500,
   useH0: false,
