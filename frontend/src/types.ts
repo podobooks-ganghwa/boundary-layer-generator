@@ -54,7 +54,7 @@ export const DEFAULT_INPUTS: AppInputs = {
   T_inf: 220,
   M_e: 5.9,
   T0: 1500,
-  useH0: false,
+  useH0: true,
   h0: 1.5e6,
   Re_unit: 9.9e6,
   U_e: 1698,
@@ -84,4 +84,4 @@ export function deriveGeometry(inputs: AppInputs): {
   return { kind: "wedge", coneHalfAngleDeg: inputs.halfAngleDeg };
 }
 
-export const TOTAL_STEPS = 7;
+export const TOTAL_STEPS = 6;

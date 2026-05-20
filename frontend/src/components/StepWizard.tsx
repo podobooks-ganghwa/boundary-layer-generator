@@ -1,4 +1,4 @@
-import type { AppInputs, FlowLevel } from "../types";
+import type { AppInputs, FlowLevel, InputMode } from "../types";
 import { TOTAL_STEPS } from "../types";
 
 interface Props {
@@ -59,19 +59,85 @@ function choice<T extends string>(
   );
 }
 
+function ValueFields({
+  inputs,
+  onChange,
+}: {
+  inputs: AppInputs;
+  onChange: (patch: Partial<AppInputs>) => void;
+}) {
+  const fs = inputs.flowLevel === "freestream";
+
+  if (inputs.inputMode === "mode_a") {
+    return (
+      <>
+        {numField(
+          fs ? "M∞" : "M_e",
+          "마하수",
+          fs ? inputs.M_inf : inputs.M_e,
+          (v) => onChange(fs ? { M_inf: v } : { M_e: v }),
+          { min: fs ? 1.01 : 0.01 }
+        )}
+        {numField(
+          "Re_unit [1/m]",
+          "단위 레이놀즈 수",
+          inputs.Re_unit,
+          (Re_unit) => onChange({ Re_unit })
+        )}
+        <label className="field checkbox-field">
+          <input
+            type="checkbox"
+            checked={!inputs.useH0}
+            onChange={(e) => onChange({ useH0: !e.target.checked })}
+          />
+          T₀ [K] 사용 (체크 해제 시 h_tot)
+        </label>
+        {inputs.useH0 ? (
+          numField("h_tot [J/kg]", "총엔탈피", inputs.h0, (h0) => onChange({ h0 }))
+        ) : (
+          numField("T₀ [K]", "총온도", inputs.T0, (T0) => onChange({ T0 }))
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {numField(
+        fs ? "U∞ [m/s]" : "U_e [m/s]",
+        "속도",
+        fs ? inputs.U_inf : inputs.U_e,
+        (v) => onChange(fs ? { U_inf: v } : { U_e: v })
+      )}
+      {numField(
+        fs ? "p∞ [Pa]" : "p_e [Pa]",
+        "압력",
+        fs ? inputs.p_inf : inputs.p_e,
+        (v) => onChange(fs ? { p_inf: v } : { p_e: v })
+      )}
+      {numField(
+        fs ? "T∞ [K]" : "T_e [K]",
+        "온도",
+        fs ? inputs.T_inf : inputs.T_e,
+        (v) => onChange(fs ? { T_inf: v } : { T_e: v }),
+        { min: 1 }
+      )}
+    </>
+  );
+}
+
 export default function StepWizard({ inputs, step, onStepChange, onChange }: Props) {
-  const setFlowLevel = (flowLevel: FlowLevel) => {
-    onChange({
-      flowLevel,
-      inputMode: flowLevel === "freestream" ? ("mode_a" as const) : ("mode_b" as const),
-    });
-  };
+  const setFlowLevel = (flowLevel: FlowLevel) => onChange({ flowLevel });
+
+  const setInputMode = (inputMode: InputMode) => onChange({ inputMode });
 
   const canNext =
     step < TOTAL_STEPS &&
-    (step !== 2 ||
+    (step !== 1 ||
       (inputs.bodyType === "2d" && inputs.halfAngleDeg >= 0) ||
       (inputs.bodyType === "axisymmetric" && inputs.halfAngleDeg > 0));
+
+  const stateName = inputs.flowLevel === "freestream" ? "프리스트림" : "엣지";
 
   return (
     <div className="wizard">
@@ -93,31 +159,22 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
       </div>
 
       <div className="wizard-body">
-        {step === 1 &&
-          choice(
-            "1. 몸체는 2차원인가요, 축대칭인가요?",
-            "2D는 평판·웨지, 축대칭은 원뿔(콘) 흐름을 의미합니다.",
-            inputs.bodyType,
-            [
-              { id: "2d", title: "2D (평판 / 웨지)", desc: "평판 또는 날카로운 웨지" },
-              { id: "axisymmetric", title: "축대칭 (콘)", desc: "원뿔 — Mangler x_eff = x/3" },
-            ],
-            (bodyType) => onChange({ bodyType })
-          )}
-
-        {step === 2 && (
+        {/* 1. 기하 */}
+        {step === 1 && (
           <div>
-            <p className="step-lead">
-              2. {inputs.bodyType === "2d" ? "2D 기하 각도" : "콘 반각"}
-            </p>
-            <p className="step-hint">
-              {inputs.bodyType === "2d"
-                ? "0° = 평판 (충격파 없음). 그 외 = 웨지 각도 θ."
-                : "콘 반각 = 충격파 편향각 θ 근사 (1차)."}
-            </p>
+            {choice(
+              "1. 기하",
+              "충격파 각도 θ에 사용됩니다.",
+              inputs.bodyType,
+              [
+                { id: "2d", title: "2D (평판 / 웨지)", desc: "평판 또는 웨지" },
+                { id: "axisymmetric", title: "축대칭 (콘)", desc: "Mangler x_eff = x/3" },
+              ],
+              (bodyType) => onChange({ bodyType })
+            )}
             {numField(
               inputs.bodyType === "2d" ? "웨지 각도 [deg]" : "콘 반각 [deg]",
-              inputs.bodyType === "2d" ? "0 = 평판" : "예: 7",
+              inputs.bodyType === "2d" ? "0° = 평판" : "예: 7",
               inputs.halfAngleDeg,
               (halfAngleDeg) => onChange({ halfAngleDeg }),
               { min: 0, step: 0.1 }
@@ -125,138 +182,83 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
           </div>
         )}
 
-        {step === 3 &&
+        {/* 2. 어느 상태? */}
+        {step === 2 &&
           choice(
-            "3. 프리스트림 vs 엣지 — 무엇을 아시나요?",
-            "프리스트림: M∞+T₀+Re 또는 U∞+p∞+T∞. 엣지: U_e+p_e+T_e 직접.",
+            "2. 어느 상태를 입력할 것인가?",
+            "프리스트림 = 충격파 앞 원류. 엣지 = 경계층 바로 바깥(충격파 뒤) 유동.",
             inputs.flowLevel,
             [
               {
                 id: "freestream",
-                title: "프리스트림 (원류)",
-                desc: "M∞+T₀+Re 또는 U∞+p∞+T∞ → 충격파 후 엣지 자동 계산",
+                title: "프리스트림 (freestream)",
+                desc: "원류 조건 → (각도 θ) 충격파 → 엣지 자동 계산",
               },
               {
                 id: "edge",
-                title: "엣지 (이미 알고 있음)",
-                desc: "U_e, p_e, T_e 를 직접 입력",
+                title: "엣지 (edge)",
+                desc: "이미 알고 있는 경계층 외연 조건을 직접 입력",
               },
             ],
             setFlowLevel
           )}
 
-        {step === 4 &&
+        {/* 3. 어떻게 입력? */}
+        {step === 3 &&
           choice(
-            inputs.flowLevel === "freestream" ? "4. 프리스트림 입력 형식" : "4. 엣지 입력 형식",
-            inputs.flowLevel === "freestream"
-              ? "원류(충격파 앞) 조합"
-              : "경계층 외연(충격파 뒤) 조합",
+            "3. 그 상태를 어떻게 입력할 것인가?",
+            `${stateName} 조건을 아래 두 형식 중 하나로 넣습니다.`,
             inputs.inputMode,
             [
               {
                 id: "mode_a",
-                title:
-                  inputs.flowLevel === "freestream"
-                    ? "M∞ + T₀ + Re_unit"
-                    : "M_e + T₀ + Re_unit",
-                desc: "마하, 총온도(또는 h₀), 단위 레이놀즈",
+                title: "M + Re_unit + h_tot",
+                desc: "마하수, 단위 레이놀즈, 총엔탈피 (또는 T₀)",
               },
               {
                 id: "mode_b",
-                title: inputs.flowLevel === "freestream" ? "U∞ + p∞ + T∞" : "U_e + p_e + T_e",
-                desc: "속도, 압력, 온도",
+                title: "u + p + T",
+                desc: "속도, 압력, 온도 (정적)",
               },
             ],
-            (inputMode) => onChange({ inputMode })
+            setInputMode
           )}
 
-        {step === 5 && inputs.flowLevel === "freestream" && (
+        {/* 4. 수치 */}
+        {step === 4 && (
           <div>
-            <p className="step-lead">5. 프리스트림 (원류) 수치</p>
-            <p className="step-hint">
-              → 정적 (M∞,p∞,T∞) 유도 → θ 충격파 → 엣지.{" "}
-              <a href="https://devenport.aoe.vt.edu/aoe3114/calc.html" target="_blank" rel="noreferrer">
-                VT 계산기
-              </a>{" "}
-              와 동일 충격식.
-            </p>
-            {inputs.inputMode === "mode_a" ? (
-              <>
-                {numField("M∞", "프리스트림 마하", inputs.M_inf, (M_inf) => onChange({ M_inf }), {
-                  min: 1.01,
-                })}
-                <label className="field checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={inputs.useH0}
-                    onChange={(e) => onChange({ useH0: e.target.checked })}
-                  />
-                  h₀ (T₀ 대신)
-                </label>
-                {inputs.useH0
-                  ? numField("h₀ [J/kg]", "", inputs.h0, (h0) => onChange({ h0 }))
-                  : numField("T₀ [K]", "총온도", inputs.T0, (T0) => onChange({ T0 }))}
-                {numField("Re_unit [1/m]", "프리스트림", inputs.Re_unit, (Re_unit) =>
-                  onChange({ Re_unit })
-                )}
-              </>
-            ) : (
-              <>
-                {numField("U∞ [m/s]", "", inputs.U_inf, (U_inf) => onChange({ U_inf }))}
-                {numField("p∞ [Pa]", "", inputs.p_inf, (p_inf) => onChange({ p_inf }))}
-                {numField("T∞ [K]", "", inputs.T_inf, (T_inf) => onChange({ T_inf }), { min: 1 })}
-              </>
+            <p className="step-lead">4. {stateName} 수치 입력</p>
+            {inputs.flowLevel === "freestream" && (
+              <p className="step-hint">
+                프리스트림 입력 → 정적 상태 유도 → θ 충격파(
+                <a href="https://devenport.aoe.vt.edu/aoe3114/calc.html" target="_blank" rel="noreferrer">
+                  VT식
+                </a>
+                ) → 엣지 → 경계층 계산.
+              </p>
             )}
+            {inputs.flowLevel === "edge" && (
+              <p className="step-hint">입력한 값이 경계층 계산의 엣지 조건이 됩니다.</p>
+            )}
+            <ValueFields inputs={inputs} onChange={onChange} />
           </div>
         )}
 
-        {step === 5 && inputs.flowLevel === "edge" && (
+        {step === 5 && (
           <div>
-            <p className="step-lead">5. 엣지 유동</p>
-            <p className="step-hint">경계층 외연(충격파 뒤) 조건입니다.</p>
-            {inputs.inputMode === "mode_a" ? (
-              <>
-                {numField("M_e", "엣지 마하", inputs.M_e, (M_e) => onChange({ M_e }), { min: 0.01 })}
-                <label className="field checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={inputs.useH0}
-                    onChange={(e) => onChange({ useH0: e.target.checked })}
-                  />
-                  h₀ 사용 (T₀ 대신)
-                </label>
-                {inputs.useH0
-                  ? numField("h₀ [J/kg]", "", inputs.h0, (h0) => onChange({ h0 }))
-                  : numField("T₀ [K]", "엣지 총온도", inputs.T0, (T0) => onChange({ T0 }))}
-                {numField("Re_unit [1/m]", "엣지 기준", inputs.Re_unit, (Re_unit) =>
-                  onChange({ Re_unit })
-                )}
-              </>
-            ) : (
-              <>
-                {numField("U_e [m/s]", "", inputs.U_e, (U_e) => onChange({ U_e }))}
-                {numField("p_e [Pa]", "", inputs.p_e, (p_e) => onChange({ p_e }))}
-                {numField("T_e [K]", "", inputs.T_e, (T_e) => onChange({ T_e }), { min: 1 })}
-              </>
-            )}
+            <p className="step-lead">5. 벽 온도 T_w</p>
+            {numField("T_w [K]", "등온 벽", inputs.T_w, (T_w) => onChange({ T_w }), { min: 1 })}
           </div>
         )}
 
         {step === 6 && (
           <div>
-            <p className="step-lead">6. 벽 온도 T_w</p>
-            {numField("T_w [K]", "등온 벽", inputs.T_w, (T_w) => onChange({ T_w }), { min: 1 })}
-          </div>
-        )}
-
-        {step === 7 && (
-          <div>
-            <p className="step-lead">7. 스트림 위치 x</p>
+            <p className="step-lead">6. 스트림 위치 x</p>
             {numField("선택 x [m]", "", inputs.x_sel, (x_sel) => onChange({ x_sel }))}
             {numField("x min [m]", "", inputs.x_min, (x_min) => onChange({ x_min }))}
             {numField("x max [m]", "", inputs.x_max, (x_max) => onChange({ x_max }))}
             <label className="field">
-              <span className="field-label">경계층 그림 과장</span>
+              <span className="field-label">경계층 그림 과장 배율</span>
               <input
                 type="range"
                 min={1}

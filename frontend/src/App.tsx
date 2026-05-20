@@ -209,7 +209,7 @@ export default function App() {
       )}
 
       {step < TOTAL_STEPS && !result.error && (
-        <p className="hint-bottom">7단계까지 입력하면 아래에 그래프가 나타납니다.</p>
+        <p className="hint-bottom">6단계까지 입력하면 아래에 그래프가 나타납니다.</p>
       )}
     </div>
   );

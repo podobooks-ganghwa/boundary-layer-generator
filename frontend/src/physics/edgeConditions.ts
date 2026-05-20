@@ -108,7 +108,7 @@ export function resolveFreestreamModeA(params: {
     T_inf,
     U_inf,
     Re_unit_fs: params.Re_unit,
-    inputLabel: params.h0 != null ? "M∞ + h₀ + Re_unit" : "M∞ + T₀ + Re_unit",
+        inputLabel: params.h0 != null ? "M∞ + Re_unit + h_tot" : "M∞ + Re_unit + T₀",
   };
 }
 
