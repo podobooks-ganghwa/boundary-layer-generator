@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Secrets / local config
+.env
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and scratch outputs
+*.log
+outputs/tmp/
+outputs/large/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Keep committed example artifacts:
+# !outputs/example_cone/
