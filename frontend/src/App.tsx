@@ -16,6 +16,7 @@ import {
 import { MANGLER_NOTE, type GeometryConfig } from "./physics/geometry";
 import { linspace, profileAtX, xSweep } from "./physics/profiles";
 import { DEFAULT_INPUTS, deriveGeometry, TOTAL_STEPS, type AppInputs } from "./types";
+import { APP_VERSION } from "./version";
 
 type BuildResult = {
   edge: ReturnType<typeof fromModeB>;
@@ -101,7 +102,10 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <h1>Boundary Layer Generator</h1>
+        <h1>
+          Boundary Layer Generator
+          <span className="app-version">{APP_VERSION}</span>
+        </h1>
         <p className="subtitle">
           브라우저에서 돌아가는 경계층 유사해 프로파일 생성기 (평판 · 웨지 · 콘)
         </p>
