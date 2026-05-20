@@ -1,5 +1,10 @@
 import type { EdgeConditions, ResolvedFreestream } from "../physics/edgeConditions";
-import { edgeToRows, freestreamShockToRows, taylorMaccollToRows } from "../physics/edgeConditions";
+import {
+  edgeToRows,
+  freestreamDirectToRows,
+  freestreamShockToRows,
+  taylorMaccollToRows,
+} from "../physics/edgeConditions";
 import type { PostShockState } from "../physics/shockRelations";
 import type { TaylorMaccollResult } from "../physics/taylorMaccoll";
 
@@ -8,6 +13,7 @@ interface Props {
   resolved?: ResolvedFreestream;
   shock?: PostShockState;
   taylorMaccoll?: TaylorMaccollResult;
+  freestreamIsEdge?: boolean;
   shockNote?: string;
   tmNote?: string;
 }
@@ -35,11 +41,15 @@ export default function SummaryTable({
   resolved,
   shock,
   taylorMaccoll,
+  freestreamIsEdge,
   shockNote,
   tmNote,
 }: Props) {
   return (
     <div className="summary-wrap">
+      {resolved && freestreamIsEdge && (
+        <Table title="평판: 프리스트림 = 엣지" rows={freestreamDirectToRows(resolved)} />
+      )}
       {resolved && taylorMaccoll && (
         <>
           <Table

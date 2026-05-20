@@ -1,4 +1,5 @@
-import type { AppInputs, ConeFreestreamModel, FlowLevel, InputMode } from "../types";
+import type { AppInputs, FlowLevel, InputMode } from "../types";
+import { deriveGeometry } from "../types";
 import { TOTAL_STEPS } from "../types";
 
 /** UI 단위 ↔ 내부 SI (Re: 1/m, h: J/kg) */
@@ -173,7 +174,7 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
           <div>
             {choice(
               "1. 기하",
-              "충격파 각도 θ에 사용됩니다.",
+              "평판(0°): 프리스트림=엣지 · 웨지: 2D oblique · 콘: Taylor–Maccoll",
               inputs.bodyType,
               [
                 { id: "2d", title: "2D (평판 / 웨지)", desc: "평판 또는 웨지" },
@@ -188,26 +189,6 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
               (halfAngleDeg) => onChange({ halfAngleDeg }),
               { min: 0, step: 0.1 }
             )}
-            {inputs.bodyType === "axisymmetric" && (
-              choice(
-                "콘 프리스트림 → 엣지",
-                "Taylor–Maccoll: 축대칭 콘 충격파. 2D oblique: 웨지 근사(구버전).",
-                inputs.coneFreestreamModel,
-                [
-                  {
-                    id: "taylor_maccoll",
-                    title: "Taylor–Maccoll",
-                    desc: "β 적분 + Vθ(θ_c)=0 → M_e, p_e, T_e",
-                  },
-                  {
-                    id: "oblique_2d",
-                    title: "2D oblique shock",
-                    desc: "반각을 편향각 θ 로 둔 평면 충격파 근사",
-                  },
-                ],
-                (coneFreestreamModel: ConeFreestreamModel) => onChange({ coneFreestreamModel })
-              )
-            )}
           </div>
         )}
 
@@ -221,7 +202,12 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
               {
                 id: "freestream",
                 title: "프리스트림 (freestream)",
-                desc: "원류 조건 → (각도 θ) 충격파 → 엣지 자동 계산",
+                desc:
+                  deriveGeometry(inputs).kind === "flat_plate"
+                    ? "평판: 프리스트림이 곧 엣지 조건"
+                    : deriveGeometry(inputs).kind === "cone"
+                      ? "콘: Taylor–Maccoll로 엣지 자동 계산"
+                      : "웨지: 2D oblique shock → 엣지 자동 계산",
               },
               {
                 id: "edge",
@@ -259,11 +245,12 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
             <p className="step-lead">4. {stateName} 수치 입력</p>
             {inputs.flowLevel === "freestream" && (
               <p className="step-hint">
-                프리스트림 입력 → 정적 상태 유도 → θ 충격파(
-                <a href="https://devenport.aoe.vt.edu/aoe3114/calc.html" target="_blank" rel="noreferrer">
-                  VT식
-                </a>
-                ) → 엣지 → 경계층 계산.
+                {deriveGeometry(inputs).kind === "flat_plate" &&
+                  "평판: 입력한 프리스트림이 그대로 경계층 엣지 조건입니다."}
+                {deriveGeometry(inputs).kind === "wedge" &&
+                  "웨지: 프리스트림 → 2D oblique shock (θ = 웨지각) → 엣지 → 경계층."}
+                {deriveGeometry(inputs).kind === "cone" &&
+                  "콘: 프리스트림 → Taylor–Maccoll (반각) → 엣지 → 경계층."}
               </p>
             )}
             {inputs.flowLevel === "edge" && (

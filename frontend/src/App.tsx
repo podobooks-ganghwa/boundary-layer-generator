@@ -32,9 +32,8 @@ function buildEdge(inputs: AppInputs): BuildResult {
     const meta = fromFreestreamWithShock({
       inputMode: inputs.inputMode,
       T_w: inputs.T_w,
+      geometry: geom.kind,
       deflectionDeg,
-      coneModel:
-        geom.kind === "cone" ? inputs.coneFreestreamModel : "oblique_2d",
       ...(inputs.inputMode === "mode_a"
         ? {
             M_inf: inputs.M_inf,
@@ -150,6 +149,7 @@ export default function App() {
                 resolved={result.freestreamMeta?.resolved}
                 shock={result.freestreamMeta?.shock}
                 taylorMaccoll={result.freestreamMeta?.taylorMaccoll}
+                freestreamIsEdge={result.freestreamMeta?.freestreamIsEdge}
                 shockNote={result.freestreamMeta?.shock?.note}
                 tmNote={result.freestreamMeta?.taylorMaccoll?.note}
               />

@@ -6,6 +6,7 @@ import {
   temperatureFromTotal,
   velocityFromMach,
 } from "./gas";
+import type { GeometryKind } from "./geometry";
 import { obliqueShock, type FreestreamState, type PostShockState } from "./shockRelations";
 import { solveTaylorMaccoll, type TaylorMaccollResult } from "./taylorMaccoll";
 
@@ -26,6 +27,8 @@ export interface EdgeFromFreestreamResult {
   freestream: FreestreamState;
   shock?: PostShockState;
   taylorMaccoll?: TaylorMaccollResult;
+  /** 평판: 충격파 없이 프리스트림 = 엣지 */
+  freestreamIsEdge?: boolean;
   resolved: ResolvedFreestream;
 }
 
@@ -114,6 +117,24 @@ export function resolveFreestreamModeA(params: {
   };
 }
 
+function edgeFromResolvedFreestream(resolved: ResolvedFreestream, T_w: number): EdgeConditions {
+  const { M_inf, p_inf, T_inf, U_inf } = resolved;
+  const rho_e = densityFromIdealGas(p_inf, T_inf) as number;
+  const mu_e = sutherlandViscosity(T_inf) as number;
+  const a_e = speedOfSound(T_inf) as number;
+  return {
+    M_e: M_inf,
+    U_e: U_inf,
+    T_e: T_inf,
+    p_e: p_inf,
+    rho_e,
+    mu_e,
+    a_e,
+    Re_unit: reUnit(rho_e, U_inf, mu_e),
+    T_w,
+  };
+}
+
 function edgeFromTaylorMaccoll(tm: TaylorMaccollResult, T_w: number): EdgeConditions {
   const { M_e, U_e, T_e, p_e, rho_e } = tm;
   const mu_e = sutherlandViscosity(T_e) as number;
@@ -132,15 +153,16 @@ function edgeFromTaylorMaccoll(tm: TaylorMaccollResult, T_w: number): EdgeCondit
 }
 
 /**
- * 프리스트림 → 엣지.
- * - cone + Taylor–Maccoll: 축대칭 콘 충격파 ODE
- * - wedge/flat 또는 oblique_2d: 2D oblique shock (θ = 편향각)
+ * 프리스트림 → 엣지 (기하에 따라 자동).
+ * - flat_plate: 프리스트림 = 엣지 (충격파 없음)
+ * - wedge: 2D oblique shock (θ = 웨지각)
+ * - cone: Taylor–Maccoll (θ_c = 반각)
  */
 export function fromFreestreamWithShock(params: {
   inputMode: "mode_a" | "mode_b";
   T_w: number;
+  geometry: GeometryKind;
   deflectionDeg: number;
-  coneModel?: "taylor_maccoll" | "oblique_2d";
   M_inf?: number;
   T0?: number;
   h0?: number;
@@ -168,7 +190,12 @@ export function fromFreestreamWithShock(params: {
     T_inf: resolved.T_inf,
   };
 
-  if (params.coneModel === "taylor_maccoll") {
+  if (params.geometry === "flat_plate") {
+    const edge = edgeFromResolvedFreestream(resolved, params.T_w);
+    return { edge, freestream, freestreamIsEdge: true, resolved };
+  }
+
+  if (params.geometry === "cone") {
     const tm = solveTaylorMaccoll({
       M_inf: resolved.M_inf,
       p_inf: resolved.p_inf,
@@ -258,6 +285,20 @@ export function edgeToRows(edge: EdgeConditions): { quantity: string; value: str
     { quantity: "a_e [m/s]", value: edge.a_e.toPrecision(5) },
     { quantity: "Re_unit [1/m]", value: edge.Re_unit.toExponential(4) },
     { quantity: "T_w [K]", value: edge.T_w.toPrecision(5) },
+  ];
+}
+
+export function freestreamDirectToRows(
+  resolved: ResolvedFreestream
+): { quantity: string; value: string }[] {
+  return [
+    { quantity: "입력 형식", value: resolved.inputLabel },
+    { quantity: "M∞ = M_e", value: resolved.M_inf.toPrecision(5) },
+    { quantity: "p∞ = p_e [Pa]", value: resolved.p_inf.toPrecision(5) },
+    { quantity: "T∞ = T_e [K]", value: resolved.T_inf.toPrecision(5) },
+    { quantity: "U∞ = U_e [m/s]", value: resolved.U_inf.toPrecision(5) },
+    { quantity: "Re_unit,∞ [1/m]", value: resolved.Re_unit_fs.toExponential(4) },
+    { quantity: "비고", value: "평판 — 충격파 없음, 프리스트림 = 엣지" },
   ];
 }
 
