@@ -1,12 +1,15 @@
 import type { EdgeConditions, ResolvedFreestream } from "../physics/edgeConditions";
-import { edgeToRows, freestreamShockToRows } from "../physics/edgeConditions";
+import { edgeToRows, freestreamShockToRows, taylorMaccollToRows } from "../physics/edgeConditions";
 import type { PostShockState } from "../physics/shockRelations";
+import type { TaylorMaccollResult } from "../physics/taylorMaccoll";
 
 interface Props {
   edge: EdgeConditions;
   resolved?: ResolvedFreestream;
   shock?: PostShockState;
+  taylorMaccoll?: TaylorMaccollResult;
   shockNote?: string;
+  tmNote?: string;
 }
 
 function Table({ title, rows }: { title: string; rows: { quantity: string; value: string }[] }) {
@@ -27,10 +30,26 @@ function Table({ title, rows }: { title: string; rows: { quantity: string; value
   );
 }
 
-export default function SummaryTable({ edge, resolved, shock, shockNote }: Props) {
+export default function SummaryTable({
+  edge,
+  resolved,
+  shock,
+  taylorMaccoll,
+  shockNote,
+  tmNote,
+}: Props) {
   return (
     <div className="summary-wrap">
-      {resolved && shock && (
+      {resolved && taylorMaccoll && (
+        <>
+          <Table
+            title="프리스트림 → Taylor–Maccoll 콘 엣지"
+            rows={taylorMaccollToRows(resolved, taylorMaccoll)}
+          />
+          {tmNote && <p className="shock-note">{tmNote}</p>}
+        </>
+      )}
+      {resolved && shock && !taylorMaccoll && (
         <>
           <Table
             title="프리스트림 & 충격파 → 엣지 (자동 계산)"

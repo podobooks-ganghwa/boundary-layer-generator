@@ -8,6 +8,8 @@ interface Props {
   geometry: GeometryConfig;
   xSel: number;
   visualScale: number;
+  /** Taylor–Maccoll shock angle [deg] from axis (meridional plane) */
+  shockBetaDeg?: number;
 }
 
 export default function GeometryEnvelope({
@@ -16,6 +18,7 @@ export default function GeometryEnvelope({
   geometry,
   xSel,
   visualScale,
+  shockBetaDeg,
 }: Props) {
   const x = sweep.x;
   const halfRad = (geometry.coneHalfAngleDeg * Math.PI) / 180;
@@ -65,6 +68,18 @@ export default function GeometryEnvelope({
     name: "몸체 표면",
     line: { color: "#1a1a1a", width: 3 },
   });
+
+  if (geometry.kind === "cone" && shockBetaDeg != null && shockBetaDeg > 0) {
+    const betaRad = (shockBetaDeg * Math.PI) / 180;
+    const yShockMm = x.map((xi) => xi * Math.tan(betaRad) * 1e3);
+    traces.push({
+      x,
+      y: yShockMm,
+      mode: "lines",
+      name: `충격파 β=${shockBetaDeg.toFixed(1)}°`,
+      line: { color: "#e67e22", dash: "dashdot", width: 2 },
+    });
+  }
 
   traces.push({
     x,

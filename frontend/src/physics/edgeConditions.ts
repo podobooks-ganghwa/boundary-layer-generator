@@ -7,6 +7,7 @@ import {
   velocityFromMach,
 } from "./gas";
 import { obliqueShock, type FreestreamState, type PostShockState } from "./shockRelations";
+import { solveTaylorMaccoll, type TaylorMaccollResult } from "./taylorMaccoll";
 
 export interface EdgeConditions {
   M_e: number;
@@ -23,7 +24,8 @@ export interface EdgeConditions {
 export interface EdgeFromFreestreamResult {
   edge: EdgeConditions;
   freestream: FreestreamState;
-  shock: PostShockState;
+  shock?: PostShockState;
+  taylorMaccoll?: TaylorMaccollResult;
   resolved: ResolvedFreestream;
 }
 
@@ -108,17 +110,37 @@ export function resolveFreestreamModeA(params: {
     T_inf,
     U_inf,
     Re_unit_fs: params.Re_unit,
-        inputLabel: params.h0 != null ? "M∞ + Re_unit + h_tot" : "M∞ + Re_unit + T₀",
+        inputLabel: params.h0 != null ? "M∞ + Re(e6/m) + h_tot(MJ/kg)" : "M∞ + Re(e6/m) + T₀",
+  };
+}
+
+function edgeFromTaylorMaccoll(tm: TaylorMaccollResult, T_w: number): EdgeConditions {
+  const { M_e, U_e, T_e, p_e, rho_e } = tm;
+  const mu_e = sutherlandViscosity(T_e) as number;
+  const a_e = speedOfSound(T_e) as number;
+  return {
+    M_e,
+    U_e,
+    T_e,
+    p_e,
+    rho_e,
+    mu_e,
+    a_e,
+    Re_unit: reUnit(rho_e, U_e, mu_e),
+    T_w,
   };
 }
 
 /**
- * 프리스트림 입력 → 정적 (M∞,p∞,T∞) → oblique shock → 엣지.
+ * 프리스트림 → 엣지.
+ * - cone + Taylor–Maccoll: 축대칭 콘 충격파 ODE
+ * - wedge/flat 또는 oblique_2d: 2D oblique shock (θ = 편향각)
  */
 export function fromFreestreamWithShock(params: {
   inputMode: "mode_a" | "mode_b";
   T_w: number;
   deflectionDeg: number;
+  coneModel?: "taylor_maccoll" | "oblique_2d";
   M_inf?: number;
   T0?: number;
   h0?: number;
@@ -145,6 +167,18 @@ export function fromFreestreamWithShock(params: {
     p_inf: resolved.p_inf,
     T_inf: resolved.T_inf,
   };
+
+  if (params.coneModel === "taylor_maccoll") {
+    const tm = solveTaylorMaccoll({
+      M_inf: resolved.M_inf,
+      p_inf: resolved.p_inf,
+      T_inf: resolved.T_inf,
+      theta_c_deg: params.deflectionDeg,
+    });
+    const edge = edgeFromTaylorMaccoll(tm, params.T_w);
+    return { edge, freestream, taylorMaccoll: tm, resolved };
+  }
+
   const shock = obliqueShock(freestream, (params.deflectionDeg * Math.PI) / 180);
   const edge = edgeFromPostShock(shock, params.T_w);
   return { edge, freestream, shock, resolved };
@@ -224,6 +258,25 @@ export function edgeToRows(edge: EdgeConditions): { quantity: string; value: str
     { quantity: "a_e [m/s]", value: edge.a_e.toPrecision(5) },
     { quantity: "Re_unit [1/m]", value: edge.Re_unit.toExponential(4) },
     { quantity: "T_w [K]", value: edge.T_w.toPrecision(5) },
+  ];
+}
+
+export function taylorMaccollToRows(
+  resolved: ResolvedFreestream,
+  tm: TaylorMaccollResult
+): { quantity: string; value: string }[] {
+  return [
+    { quantity: "입력 형식", value: resolved.inputLabel },
+    { quantity: "M∞", value: resolved.M_inf.toPrecision(5) },
+    { quantity: "p∞ [Pa]", value: resolved.p_inf.toPrecision(5) },
+    { quantity: "T∞ [K]", value: resolved.T_inf.toPrecision(5) },
+    { quantity: "β [deg] (TM)", value: tm.beta_deg.toFixed(2) },
+    { quantity: "δ [deg]", value: tm.delta_deg.toFixed(2) },
+    { quantity: "M₂ (직후)", value: tm.M2.toPrecision(5) },
+    { quantity: "→ M_e", value: tm.M_e.toPrecision(5) },
+    { quantity: "p_e/p∞", value: tm.p_e_over_p_inf.toPrecision(5) },
+    { quantity: "T_e/T∞", value: tm.T_e_over_T_inf.toPrecision(5) },
+    { quantity: "Vθ(θ_c)", value: tm.Vtheta_at_cone.toExponential(3) },
   ];
 }
 

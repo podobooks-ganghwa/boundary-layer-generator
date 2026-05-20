@@ -17,6 +17,7 @@ if str(_SRC) not in sys.path:
 from boundary_layer.compressible_profile import MODEL_LABEL
 from boundary_layer.edge_conditions import from_mode_b
 from boundary_layer.geometry import GeometryConfig
+from boundary_layer.taylor_maccoll import solve_taylor_maccoll
 from boundary_layer.plotting import plot_all_example
 from boundary_layer.profiles import profile_at_x, profile_to_dict, x_sweep, x_sweep_to_dict
 
@@ -25,6 +26,14 @@ def main() -> None:
     project_root = _SRC.parent
     out_dir = project_root / "outputs" / "example_cone"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    tm = solve_taylor_maccoll(M_inf=6.0, p_inf=4670.0, T_inf=206.0, theta_c_deg=7.0)
+    print("=== Taylor–Maccoll cone test ===")
+    print(f"  beta [deg]   = {tm.beta_deg:.4f}")
+    print(f"  M_e          = {tm.M_e:.4f}")
+    print(f"  p_e/p_inf    = {tm.p_e_over_p_inf:.4f}")
+    print(f"  T_e/T_inf    = {tm.T_e_over_T_inf:.4f}")
+    print(f"  Vtheta(theta_c) = {tm.Vtheta_at_cone:.3e}")
 
     edge = from_mode_b(
         U_e=1698.0,

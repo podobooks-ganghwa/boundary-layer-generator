@@ -3,10 +3,14 @@ import type { GeometryKind } from "./physics/geometry";
 export type InputMode = "mode_a" | "mode_b";
 export type BodyType = "2d" | "axisymmetric";
 export type FlowLevel = "freestream" | "edge";
+/** Cone freestream → edge: Taylor–Maccoll (default) or 2D oblique-shock wedge approx. */
+export type ConeFreestreamModel = "taylor_maccoll" | "oblique_2d";
 
 export interface AppInputs {
   /** Step 1 */
   bodyType: BodyType;
+  /** Cone + freestream only */
+  coneFreestreamModel: ConeFreestreamModel;
   /** Step 2: 2D wedge angle [deg], 0 = flat plate; axisymmetric = cone half-angle */
   halfAngleDeg: number;
   /** Step 3 */
@@ -45,6 +49,7 @@ export interface AppInputs {
 
 export const DEFAULT_INPUTS: AppInputs = {
   bodyType: "axisymmetric",
+  coneFreestreamModel: "taylor_maccoll",
   halfAngleDeg: 7,
   flowLevel: "freestream",
   inputMode: "mode_a",

@@ -33,6 +33,8 @@ function buildEdge(inputs: AppInputs): BuildResult {
       inputMode: inputs.inputMode,
       T_w: inputs.T_w,
       deflectionDeg,
+      coneModel:
+        geom.kind === "cone" ? inputs.coneFreestreamModel : "oblique_2d",
       ...(inputs.inputMode === "mode_a"
         ? {
             M_inf: inputs.M_inf,
@@ -147,7 +149,9 @@ export default function App() {
                 edge={result.edge}
                 resolved={result.freestreamMeta?.resolved}
                 shock={result.freestreamMeta?.shock}
-                shockNote={result.freestreamMeta?.shock.note}
+                taylorMaccoll={result.freestreamMeta?.taylorMaccoll}
+                shockNote={result.freestreamMeta?.shock?.note}
+                tmNote={result.freestreamMeta?.taylorMaccoll?.note}
               />
               <div className="metrics">
                 <div className="metric">
@@ -179,6 +183,7 @@ export default function App() {
                 geometry={result.geometry}
                 xSel={inputs.x_sel}
                 visualScale={inputs.blVisualScale}
+                shockBetaDeg={result.freestreamMeta?.taylorMaccoll?.beta_deg}
               />
             </section>
 

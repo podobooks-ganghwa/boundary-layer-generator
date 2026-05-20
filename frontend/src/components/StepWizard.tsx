@@ -1,5 +1,9 @@
-import type { AppInputs, FlowLevel, InputMode } from "../types";
+import type { AppInputs, ConeFreestreamModel, FlowLevel, InputMode } from "../types";
 import { TOTAL_STEPS } from "../types";
+
+/** UI 단위 ↔ 내부 SI (Re: 1/m, h: J/kg) */
+const RE_PER_M_TO_E6 = 1e6;
+const H_JKG_TO_MJKG = 1e6;
 
 interface Props {
   inputs: AppInputs;
@@ -79,10 +83,10 @@ function ValueFields({
           { min: fs ? 1.01 : 0.01 }
         )}
         {numField(
-          "Re_unit [1/m]",
-          "단위 레이놀즈 수",
-          inputs.Re_unit,
-          (Re_unit) => onChange({ Re_unit })
+          "Re [×10⁶/m]",
+          "단위 레이놀즈 수 (e6/m)",
+          inputs.Re_unit / RE_PER_M_TO_E6,
+          (reE6) => onChange({ Re_unit: reE6 * RE_PER_M_TO_E6 })
         )}
         <label className="field checkbox-field">
           <input
@@ -93,7 +97,12 @@ function ValueFields({
           T₀ [K] 사용 (체크 해제 시 h_tot)
         </label>
         {inputs.useH0 ? (
-          numField("h_tot [J/kg]", "총엔탈피", inputs.h0, (h0) => onChange({ h0 }))
+          numField(
+            "h_tot [MJ/kg]",
+            "총엔탈피",
+            inputs.h0 / H_JKG_TO_MJKG,
+            (hMj) => onChange({ h0: hMj * H_JKG_TO_MJKG })
+          )
         ) : (
           numField("T₀ [K]", "총온도", inputs.T0, (T0) => onChange({ T0 }))
         )}
@@ -179,6 +188,26 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
               (halfAngleDeg) => onChange({ halfAngleDeg }),
               { min: 0, step: 0.1 }
             )}
+            {inputs.bodyType === "axisymmetric" && (
+              choice(
+                "콘 프리스트림 → 엣지",
+                "Taylor–Maccoll: 축대칭 콘 충격파. 2D oblique: 웨지 근사(구버전).",
+                inputs.coneFreestreamModel,
+                [
+                  {
+                    id: "taylor_maccoll",
+                    title: "Taylor–Maccoll",
+                    desc: "β 적분 + Vθ(θ_c)=0 → M_e, p_e, T_e",
+                  },
+                  {
+                    id: "oblique_2d",
+                    title: "2D oblique shock",
+                    desc: "반각을 편향각 θ 로 둔 평면 충격파 근사",
+                  },
+                ],
+                (coneFreestreamModel: ConeFreestreamModel) => onChange({ coneFreestreamModel })
+              )
+            )}
           </div>
         )}
 
@@ -212,8 +241,8 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
             [
               {
                 id: "mode_a",
-                title: "M + Re_unit + h_tot",
-                desc: "마하수, 단위 레이놀즈, 총엔탈피 (또는 T₀)",
+                title: "M + Re + h_tot",
+                desc: "마하수, Re [×10⁶/m], h_tot [MJ/kg] (또는 T₀ [K])",
               },
               {
                 id: "mode_b",
