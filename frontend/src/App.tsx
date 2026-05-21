@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import CsvExport from "./components/CsvExport";
 import GeometryOverview from "./components/GeometryOverview";
+import ProfilePlots from "./components/ProfilePlots";
 import { OVERVIEW_LENGTH_M } from "./components/geometryPlotUtils";
 import StepWizard from "./components/StepWizard";
 import SummaryTable from "./components/SummaryTable";
@@ -191,6 +192,15 @@ export default function App() {
                   result.freestreamMeta?.taylorMaccoll?.beta_deg ??
                   result.freestreamMeta?.shock?.beta_deg
                 }
+              />
+            </section>
+
+            <section>
+              <h2>프로파일 (x = {inputs.x_sel} m)</h2>
+              <ProfilePlots
+                prof={result.prof}
+                geometry={result.geometry}
+                yLogScale={inputs.yLogScale}
               />
             </section>
 
