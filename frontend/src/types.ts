@@ -39,8 +39,6 @@ export interface AppInputs {
   eta_max: number;
   n_eta: number;
   yLogScale: boolean;
-  /** Visual only: exaggerate BL thickness on geometry plot */
-  blVisualScale: number;
 }
 
 export const DEFAULT_INPUTS: AppInputs = {
@@ -63,12 +61,11 @@ export const DEFAULT_INPUTS: AppInputs = {
   T_w: 300,
   x_sel: 0.3,
   x_min: 0.05,
-  x_max: 0.5,
+  x_max: 0.5, // overview plot is fixed 500 mm
   n_x: 40,
   eta_max: 8,
   n_eta: 400,
   yLogScale: false,
-  blVisualScale: 12,
 };
 
 export function deriveGeometry(inputs: AppInputs): {

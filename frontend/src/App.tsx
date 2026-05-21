@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import CsvExport from "./components/CsvExport";
-import GeometryEnvelope from "./components/GeometryEnvelope";
-import ProfilePlots from "./components/ProfilePlots";
+import GeometryDetail from "./components/GeometryDetail";
+import GeometryOverview from "./components/GeometryOverview";
+import { OVERVIEW_LENGTH_M } from "./components/geometryPlotUtils";
 import StepWizard from "./components/StepWizard";
 import SummaryTable from "./components/SummaryTable";
 import SweepPlots from "./components/SweepPlots";
@@ -85,13 +86,16 @@ export default function App() {
       };
       const blasius = solveBlasius(inputs.eta_max, inputs.n_eta);
       const xArr = linspace(inputs.x_min, inputs.x_max, inputs.n_x);
+      const overviewX = linspace(0, OVERVIEW_LENGTH_M, 80);
       const prof = profileAtX(edge, geometry, inputs.x_sel, blasius);
       const sweep = xSweep(edge, geometry, xArr, blasius);
+      const overviewSweep = xSweep(edge, geometry, overviewX, blasius);
       return {
         edge,
         geometry,
         prof,
         sweep,
+        overviewSweep,
         freestreamMeta,
         error: null as string | null,
       };
@@ -101,6 +105,7 @@ export default function App() {
         geometry: null,
         prof: null,
         sweep: null,
+        overviewSweep: null,
         freestreamMeta: null,
         error: e instanceof Error ? e.message : String(e),
       };
@@ -140,6 +145,7 @@ export default function App() {
         result.edge &&
         result.prof &&
         result.sweep &&
+        result.overviewSweep &&
         result.geometry && (
           <main className="main results">
             <section>
@@ -173,31 +179,42 @@ export default function App() {
             </section>
 
             <section className="hero-plot">
-              <h2>몸체 + 경계층 (과장 표시)</h2>
+              <h2>1. 전체 모습 (500 mm)</h2>
               <p className="section-hint">
-                빨간 영역: x = {inputs.x_sel} m 프로파일. 파란 점선: δ₉₉ × {inputs.blVisualScale}×
+                실제 스케일: 표면, 충격파, δ₉₉. 녹색 점선 = 선택 위치 x ={" "}
+                {(inputs.x_sel * 1e3).toFixed(0)} mm
               </p>
-              <GeometryEnvelope
-                sweep={result.sweep}
+              <GeometryOverview
+                sweep={result.overviewSweep}
+                geometry={result.geometry}
+                xSel={inputs.x_sel}
+                shockAngleDeg={
+                  result.freestreamMeta?.taylorMaccoll?.beta_deg ??
+                  result.freestreamMeta?.shock?.beta_deg
+                }
+              />
+            </section>
+
+            <section className="hero-plot">
+              <h2>2. 선택 위치 확대 + 프로파일</h2>
+              <p className="section-hint">
+                표면 구간 확대. x = {(inputs.x_sel * 1e3).toFixed(0)} mm 에서 u/U_e, T/T_e, ρ/ρ_e,
+                Mach vs y (가로 = 정규화 값)
+              </p>
+              <GeometryDetail
+                sweep={result.overviewSweep}
                 prof={result.prof}
                 geometry={result.geometry}
                 xSel={inputs.x_sel}
-                visualScale={inputs.blVisualScale}
-                shockBetaDeg={result.freestreamMeta?.taylorMaccoll?.beta_deg}
+                shockAngleDeg={
+                  result.freestreamMeta?.taylorMaccoll?.beta_deg ??
+                  result.freestreamMeta?.shock?.beta_deg
+                }
               />
             </section>
 
             <section>
-              <h2>프로파일 (x = {inputs.x_sel} m)</h2>
-              <ProfilePlots
-                prof={result.prof}
-                geometry={result.geometry}
-                yLogScale={inputs.yLogScale}
-              />
-            </section>
-
-            <section>
-              <h2>스트림 방향 변화</h2>
+              <h2>스트림 방향 δ, C_f</h2>
               <SweepPlots
                 sweep={result.sweep}
                 geometry={result.geometry}

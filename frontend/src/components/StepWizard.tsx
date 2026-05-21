@@ -272,18 +272,10 @@ export default function StepWizard({ inputs, step, onStepChange, onChange }: Pro
             <p className="step-lead">6. 스트림 위치 x</p>
             {numField("선택 x [m]", "", inputs.x_sel, (x_sel) => onChange({ x_sel }))}
             {numField("x min [m]", "", inputs.x_min, (x_min) => onChange({ x_min }))}
-            {numField("x max [m]", "", inputs.x_max, (x_max) => onChange({ x_max }))}
-            <label className="field">
-              <span className="field-label">경계층 그림 과장 배율</span>
-              <input
-                type="range"
-                min={1}
-                max={40}
-                value={inputs.blVisualScale}
-                onChange={(e) => onChange({ blVisualScale: parseInt(e.target.value, 10) })}
-              />
-              <span className="range-val">{inputs.blVisualScale}×</span>
-            </label>
+            {numField("x max [m]", "CSV·δ 스윕용 (전체 그림은 500 mm 고정)", inputs.x_max, (x_max) =>
+              onChange({ x_max })
+            )}
+            <p className="step-hint">몸체 전체 그림 가로 길이는 항상 500 mm입니다.</p>
           </div>
         )}
       </div>
